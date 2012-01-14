@@ -3,7 +3,7 @@
 use strict;
 #use warnings;
 
-use Test::More tests => 26;
+use Test::More tests => 62;
 
 BEGIN { use_ok 'Try::Tiny' };
 
@@ -163,4 +163,68 @@ sub Evil::new { bless { }, $_[0] }
 
 	is_deeply( $caught, { prev => "bar\n" }, 'previous value of $@ available for capture' );
 	is( $prev, "bar\n", 'previous value of $@ also available in catch block' );
+}
+
+{
+    local $@ = "magic";
+    local $_ = "other magic";
+    my $try_count = 0;
+
+    try {
+        $try_count++;
+        pass( "trying" );
+        my $object = Evil->new;
+        die "foo";
+    }
+    catch {
+        pass( "catch invoked" );
+        if( $try_count < 3 ) {
+            pass( "asking for a retry" );
+            retry();
+        }
+    };
+
+    is( $try_count, 3, "should have tried thrice" );
+}
+
+{
+    local $@ = "magic";
+    local $_ = "other magic";
+    my @try_count   = ();
+    my $last_chance = 0;
+
+    pass( "deep trying" );
+    try {
+        $try_count[0]++;
+        pass( "trying [0]" );
+        try {
+            $try_count[1]++;
+            pass( "trying [1]" );
+            try {
+                $try_count[2]++;
+                pass( "trying [2]" );
+                die "foo 2";
+            }
+            catch {
+                pass( "catch [2] invoked: retry count" );
+                if( $try_count[2] < 3 )
+                    {
+                    pass( "retrying [2]" );
+                    retry();
+                    }
+            };
+        };
+        die "foo [0]";
+    }
+    catch {
+        pass( "catch [0] invoked: retry count" );
+        if( $try_count[0] < 3 ) {
+            pass( "retrying [0]" );
+            retry();
+        }
+    };
+
+    is( $try_count[0], 3, "should have tried [0] thrice" );
+    is( $try_count[1], 3, "should have tried [1] thrice" );
+    is( $try_count[0], 3, "should have tried [2] thrice" );
 }
