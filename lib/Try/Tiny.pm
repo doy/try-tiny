@@ -10,11 +10,11 @@ BEGIN {
 	@ISA = qw(Exporter);
 }
 
-$VERSION = "0.11";
+$VERSION = "0.12";
 
 $VERSION = eval $VERSION;
 
-@EXPORT = @EXPORT_OK = qw(try catch finally);
+@EXPORT = @EXPORT_OK = qw(try catch retry finally);
 
 $Carp::Internal{+__PACKAGE__}++;
 
@@ -57,58 +57,65 @@ sub try (&;@) {
 	# not perfect, but we could provide a list of additional errors for
 	# $catch->();
 
-	{
-		# localize $@ to prevent clobbering of previous value by a successful
-		# eval.
-		local $@;
+	TRY_TINY_RETRY:
+	while( 1 ) {
 
-		# failed will be true if the eval dies, because 1 will not be returned
-		# from the eval body
-		$failed = not eval {
-			$@ = $prev_error;
+		{
+			# localize $@ to prevent clobbering of previous value by a successful
+			# eval.
+			local $@;
 
-			# evaluate the try block in the correct context
-			if ( $wantarray ) {
-				@ret = $try->();
-			} elsif ( defined $wantarray ) {
-				$ret[0] = $try->();
-			} else {
-				$try->();
+			# failed will be true if the eval dies, because 1 will not be returned
+			# from the eval body
+			$failed = not eval {
+				$@ = $prev_error;
+
+				# evaluate the try block in the correct context
+				if ( $wantarray ) {
+					@ret = $try->();
+				} elsif ( defined $wantarray ) {
+					$ret[0] = $try->();
+				} else {
+					$try->();
+				};
+
+				return 1;    # properly set $fail to false
 			};
 
-			return 1; # properly set $fail to false
-		};
-
-		# copy $@ to $error; when we leave this scope, local $@ will revert $@
-		# back to its previous value
-		$error = $@;
-	}
-
-	# set up a scope guard to invoke the finally block at the end
-	my @guards =
-    map { Try::Tiny::ScopeGuard->_new($_, $failed ? $error : ()) }
-    @finally;
-
-	# at this point $failed contains a true value if the eval died, even if some
-	# destructor overwrote $@ as the eval was unwinding.
-	if ( $failed ) {
-		# if we got an error, invoke the catch block.
-		if ( $catch ) {
-			# This works like given($error), but is backwards compatible and
-			# sets $_ in the dynamic scope for the body of C<$catch>
-			for ($error) {
-				return $catch->($error);
-			}
-
-			# in case when() was used without an explicit return, the C<for>
-			# loop will be aborted and there's no useful return value
+			# copy $@ to $error; when we leave this scope, local $@ will revert $@
+			# back to its previous value
+			$error = $@;
 		}
 
-		return;
-	} else {
-		# no failure, $@ is back to what it was, everything is fine
-		return $wantarray ? @ret : $ret[0];
+		# set up a scope guard to invoke the finally block at the end
+		my @guards =
+					map { Try::Tiny::ScopeGuard->_new($_, $failed ? $error : ()) }
+					@finally;
+
+		# at this point $failed contains a true value if the eval died, even if some
+		# destructor overwrote $@ as the eval was unwinding.
+		if ( $failed ) {
+			# if we got an error, invoke the catch block.
+			if ( $catch ) {
+				# This works like given($error), but is backwards compatible and
+				# sets $_ in the dynamic scope for the body of C<$catch>
+				for ($error) {
+					return $catch->($error);
+				}
+
+				# in case when() was used without an explicit return, the C<for>
+				# loop will be aborted and there's no useful return value
+			}
+		}
+
+	# $@ is back to what it was, return from try
+	return $wantarray ? @ret : $ret[0];
 	}
+}
+
+sub retry {
+    no warnings 'exiting';
+    redo TRY_TINY_RETRY;
 }
 
 sub catch (&;@) {
@@ -265,6 +272,14 @@ For code that captures C<$@> when throwing new errors (i.e.
 L<Class::Throwable>), you'll need to do:
 
 	local $@ = $_;
+
+=item retry()
+
+Similar to perl's built-in C<redo> command. When called anywhere within the
+try, catch or finally blocks, it will roll back the stack and re-enter the try
+block again.
+
+Note: retry should be used with caution to avoid endless loops!
 
 =item finally (&;$)
 
