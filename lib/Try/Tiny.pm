@@ -11,6 +11,8 @@ our @EXPORT = our @EXPORT_OK = qw(try catch finally);
 use Carp;
 $Carp::Internal{+__PACKAGE__}++;
 
+BEGIN { eval "use Sub::Name; 1" or *{subname} = sub {1} }
+
 # Need to prototype as @ not $$ because of the way Perl evaluates the prototype.
 # Keeping it at $$ means you only ever get 1 sub because we need to eval in a list
 # context & not a scalar one
@@ -46,6 +48,11 @@ sub try (&;@) {
   # FIXME consider using local $SIG{__DIE__} to accumulate all errors. It's
   # not perfect, but we could provide a list of additional errors for
   # $catch->();
+
+  # name the blocks if we have Sub::Name installed
+  subname("try {...}" => $try);
+  subname("catch {...} " => $catch) if $catch;
+  subname("finally {...} " => $_) foreach @finally;
 
   # save the value of $@ so we can set $@ back to it in the beginning of the eval
   # and restore $@ after the eval finishes
