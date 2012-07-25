@@ -50,9 +50,10 @@ sub try (&;@) {
   # $catch->();
 
   # name the blocks if we have Sub::Name installed
-  subname("try {...}" => $try);
-  subname("catch {...} " => $catch) if $catch;
-  subname("finally {...} " => $_) foreach @finally;
+  my $caller = caller;
+  subname("${caller}::try {...}" => $try);
+  subname("${caller}::catch {...} " => $catch) if $catch;
+  subname("${caller}::finally {...} " => $_) foreach @finally;
 
   # save the value of $@ so we can set $@ back to it in the beginning of the eval
   # and restore $@ after the eval finishes
