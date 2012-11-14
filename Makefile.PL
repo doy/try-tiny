@@ -12,4 +12,10 @@ WriteMakefile(
 	PREREQ_PM    => {
 		'Test::More' => 0,
 	},
+	META_MERGE => {
+		resources => {
+			homepage => 'https://github.com/doy/try-tiny.git',
+			repository => 'git://github.com/doy/try-tiny.git',
+		},
+	},
 );

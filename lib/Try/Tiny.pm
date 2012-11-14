@@ -182,7 +182,7 @@ This module provides bare bones C<try>/C<catch>/C<finally> statements that are d
 minimize common mistakes with eval blocks, and NOTHING else.
 
 This is unlike L<TryCatch> which provides a nice syntax and avoids adding
-another call stack layer, and supports calling C<return> from the try block to
+another call stack layer, and supports calling C<return> from the C<try> block to
 return from the parent subroutine. These extra features come at a cost of a few
 dependencies, namely L<Devel::Declare> and L<Scope::Upper> which are
 occasionally problematic, and the additional catch filtering uses L<Moose>
@@ -196,24 +196,26 @@ It's designed to work as correctly as possible in light of the various
 pathological edge cases (see L<BACKGROUND>) and to be compatible with any style
 of error values (simple strings, references, objects, overloaded objects, etc).
 
-If the try block dies, it returns the value of the last statement executed in
-the catch block, if there is one. Otherwise, it returns C<undef> in scalar
-context or the empty list in list context. The following two examples both
-assign C<"bar"> to C<$x>.
+If the C<try> block dies, it returns the value of the last statement executed in
+the C<catch> block, if there is one. Otherwise, it returns C<undef> in scalar
+context or the empty list in list context. The following examples all
+assign C<"bar"> to C<$x>:
 
 	my $x = try { die "foo" } catch { "bar" };
+	my $x = try { die "foo" } || { "bar" };
+	my $x = (try { die "foo" }) // { "bar" };
 
 	my $x = eval { die "foo" } || "bar";
 
-You can add finally blocks making the following true.
+You can add C<finally> blocks, yielding the following:
 
 	my $x;
 	try { die 'foo' } finally { $x = 'bar' };
 	try { die 'foo' } catch { warn "Got a die: $_" } finally { $x = 'bar' };
 
-Finally blocks are always executed making them suitable for cleanup code
-which cannot be handled using local.  You can add as many finally blocks to a
-given try block as you like.
+C<finally> blocks are always executed making them suitable for cleanup code
+which cannot be handled using local.  You can add as many C<finally> blocks to a
+given C<try> block as you like.
 
 =head1 EXPORTS
 
@@ -226,7 +228,7 @@ L<Sub::Import> to get L<Sub::Exporter>'s flexibility.
 
 =item try (&;@)
 
-Takes one mandatory try subroutine, an optional catch subroutine & finally
+Takes one mandatory C<try> subroutine, an optional C<catch> subroutine and C<finally>
 subroutine.
 
 The mandatory subroutine is evaluated in the context of an C<eval> block.
@@ -244,7 +246,7 @@ value it had before the C<try> block was executed.
 Note that the error may be false, but if that happens the C<catch> block will
 still be invoked.
 
-Once all execution is finished then the finally block if given will execute.
+Once all execution is finished then the C<finally> block, if given, will execute.
 
 =item catch (&;$)
 
@@ -256,7 +258,7 @@ with this code reference.
 
 	catch { ... }
 
-Inside the catch block the caught error is stored in C<$_>, while previous
+Inside the C<catch> block the caught error is stored in C<$_>, while previous
 value of C<$@> is still available for use.  This value may or may not be
 meaningful depending on what happened before the C<try>, but it might be a good
 idea to preserve it in an error stack.
@@ -283,14 +285,14 @@ Or even
   finally { ... }
   catch   { ... };
 
-Intended to be the second or third element of C<try>. Finally blocks are always
+Intended to be the second or third element of C<try>. C<finally> blocks are always
 executed in the event of a successful C<try> or if C<catch> is run. This allows
 you to locate cleanup code which cannot be done via C<local()> e.g. closing a file
 handle.
 
-When invoked, the finally block is passed the error that was caught.  If no
-error was caught, it is passed nothing.  (Note that the finally block does not
-localize C<$_> with the error, since unlike in a catch block, there is no way
+When invoked, the C<finally> block is passed the error that was caught.  If no
+error was caught, it is passed nothing.  (Note that the C<finally> block does not
+localize C<$_> with the error, since unlike in a C<catch> block, there is no way
 to know if C<$_ == undef> implies that there were no errors.) In other words,
 the following code does just what you would expect:
 
@@ -306,7 +308,7 @@ the following code does just what you would expect:
     }
   };
 
-B<You must always do your own error handling in the finally block>. C<Try::Tiny> will
+B<You must always do your own error handling in the C<finally> block>. C<Try::Tiny> will
 not do anything about handling possible errors coming from code located in these
 blocks.
 
@@ -321,7 +323,7 @@ There are a number of issues with C<eval>.
 
 =head2 Clobbering $@
 
-When you run an eval block and it succeeds, C<$@> will be cleared, potentially
+When you run an C<eval> block and it succeeds, C<$@> will be cleared, potentially
 clobbering an error that is currently being caught.
 
 This causes action at a distance, clearing previous errors your caller may have
@@ -339,7 +341,7 @@ the localization) in the beginning of the C<eval> block.
 
 =head2 Localizing $@ silently masks errors
 
-Inside an eval block C<die> behaves sort of like:
+Inside an C<eval> block, C<die> behaves sort of like:
 
 	sub die {
 		$@ = $_[0];
@@ -398,7 +400,7 @@ been cleared by C<eval> in the destructor.
 
 The workaround for this is even uglier than the previous ones. Even though we
 can't save the value of C<$@> from code that doesn't localize, we can at least
-be sure the eval was aborted due to an error:
+be sure the C<eval> was aborted due to an error:
 
 	my $failed = not eval {
 		...
@@ -478,8 +480,8 @@ Instead, you should capture the return value:
       say "This text WILL NEVER appear!";
   }
 
-Note that if you have a catch block, it must return undef for this to work,
-since if a catch block exists, its return value is returned in place of undef
+Note that if you have a C<catch> block, it must return C<undef> for this to work,
+since if a C<catch> block exists, its return value is returned in place of C<undef>
 when an exception is thrown.
 
 =item *
