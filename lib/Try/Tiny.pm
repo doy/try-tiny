@@ -167,7 +167,7 @@ conditions, avoiding quirks in Perl and common mistakes:
 		warn "caught error: $_"; # not $@
 	};
 
-You can also use it like a stanalone C<eval> to catch and ignore any error
+You can also use it like a standalone C<eval> to catch and ignore any error
 conditions.  Obviously, this is an extreme measure not to be undertaken
 lightly:
 
@@ -193,7 +193,7 @@ for those having a hard time installing L<TryCatch>, but who still want to
 write correct C<eval> blocks without 5 lines of boilerplate each time.
 
 It's designed to work as correctly as possible in light of the various
-pathological edge cases (see L<BACKGROUND>) and to be compatible with any style
+pathological edge cases (see L</BACKGROUND>) and to be compatible with any style
 of error values (simple strings, references, objects, overloaded objects, etc).
 
 If the C<try> block dies, it returns the value of the last statement executed in
