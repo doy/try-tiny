@@ -196,7 +196,7 @@ It's designed to work as correctly as possible in light of the various
 pathological edge cases (see L</BACKGROUND>) and to be compatible with any style
 of error values (simple strings, references, objects, overloaded objects, etc).
 
-If the C<try> block dies, it returns the value of the last statement executed in
+If the C<try> block doesn't die, it returns the value of the last statement executed in
 the C<catch> block, if there is one. Otherwise, it returns C<undef> in scalar
 context or the empty list in list context. The following examples all
 assign C<"bar"> to C<$x>:
