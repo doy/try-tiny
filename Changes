@@ -1,3 +1,14 @@
+
+  - fix tests failing on 5.6.x due to differing DESTROY semantics
+  - excise superfluous local($@) call - 7% speedup
+  - fix (fsvo) broken URLs (RT#55659)
+  - proper exception on erroneous usage of bare catch/finally (RT#81070)
+  - proper exception on erroneous use of multiple catch{} blocks
+  - clarify exception occuring on unterminated try block (RT#75712)
+  - fix the prototypes shown in docs to match code (RT#79590; thanks, Pushtaev
+    Vadim)
+  - warn loudly on exceptions in finally() blocks
+
 0.12
   - doc fixes
 
@@ -18,27 +29,27 @@
   - pass the error, if any, to finally blocks when called
 
 0.06
-	- in t/given_when.t use a plan instead of done_testing for more backwards
-	  compatibility
+  - in t/given_when.t use a plan instead of done_testing for more backwards
+    compatibility
 
 0.05
-	- Documentation fixes and clarifications
+  - Documentation fixes and clarifications
 
 0.04
-	- Restore list context propagation for catch blocks
-	- Fix a bug where finally blocks weren't always invoked
+  - Restore list context propagation for catch blocks
+  - Fix a bug where finally blocks weren't always invoked
 
 0.03
-	- Support for 'finally' blocks (Andy Yates)
-	- More documentation and tests (many people)
-	- Sets $@ to the previous value at the beginning of the eval, to allow
-	  the capture of an error stack when calling die.
+  - Support for 'finally' blocks (Andy Yates)
+  - More documentation and tests (many people)
+  - Sets $@ to the previous value at the beginning of the eval, to allow
+    the capture of an error stack when calling die.
 
 0.02
-	- Doc fixes from chromatic
-	- Various minor fixes from Adam Kennedy
-	- Additional documentation and code clarifications
-	- 5.005_04 compatibility
+  - Doc fixes from chromatic
+  - Various minor fixes from Adam Kennedy
+  - Additional documentation and code clarifications
+  - 5.005_04 compatibility
 
 0.01
-	- Initial release
+  - Initial release

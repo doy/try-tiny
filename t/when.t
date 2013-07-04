@@ -1,33 +1,34 @@
 #!/usr/bin/perl
 
 use strict;
-#use warnings;
+use warnings;
 
 use Test::More;
 
 BEGIN {
-	plan skip_all => "Perl 5.10 required" unless eval { require 5.010; 1 };
-	plan tests => 6;
+  plan skip_all => "Perl 5.10 required" unless eval { require 5.010; 1 };
+  plan tests => 6;
 }
 
 
 BEGIN { use_ok 'Try::Tiny' }
 
 use 5.010;
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 my ( $foo, $bar, $other );
 
 $_ = "magic";
 
 try {
-	die "foo";
+  die "foo";
 } catch {
 
-	like( $_, qr/foo/ );
+  like( $_, qr/foo/ );
 
-	when (/bar/) { $bar++ };
-	when (/foo/) { $foo++ };
-	default { $other++ };
+  when (/bar/) { $bar++ };
+  when (/foo/) { $foo++ };
+  default { $other++ };
 };
 
 is( $_, "magic", '$_ not clobbered' );
