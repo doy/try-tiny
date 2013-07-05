@@ -22,7 +22,7 @@ is $name, "main::try {...}", "try name";
 try {
 	die "Boom";
 } catch {
-	$name = (caller(0))[3];	
+	$name = (caller(0))[3];
 };
 is $name, "main::catch {...} ", "catch name"; # note extra space
 
@@ -31,7 +31,7 @@ try {
 } catch {
 	# noop
 } finally {
-	$name = (caller(0))[3];	
+	$name = (caller(0))[3];
 };
 is $name, "main::finally {...} ", "finally name"; # note extra space
 
