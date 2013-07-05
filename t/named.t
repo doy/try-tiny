@@ -8,7 +8,7 @@ use Test::More;
 BEGIN {
 	plan skip_all => "Sub::Name required"
 		unless eval { require Sub::Name; 1 };
-	plan tests => 3;
+	plan tests => 4;
 }
 
 BEGIN { use_ok 'Try::Tiny' }
@@ -25,4 +25,13 @@ try {
 	$name = (caller(0))[3];	
 };
 is $name, "main::catch {...} ", "catch name"; # note extra space
+
+try {
+	die "Boom";
+} catch {
+	# noop
+} finally {
+	$name = (caller(0))[3];	
+};
+is $name, "main::finally {...} ", "finally name"; # note extra space
 
