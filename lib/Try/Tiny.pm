@@ -493,7 +493,7 @@ Instead, you should capture the return value:
     my $success = try {
       die;
       1;
-    }
+    };
     return unless $success;
 
     say "This text WILL NEVER appear!";
