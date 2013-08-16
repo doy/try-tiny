@@ -24,7 +24,9 @@ sub try (&;@) {
   # to $failed
   my $wantarray = wantarray;
 
-  my ( $catch, @finally );
+  # work around perl bug by explicitly initializing these, due to the likelyhood
+  # this will be used in global destruction (perl rt#119311)
+  my ( $catch, @finally ) = ();
 
   # find labeled blocks in the argument list.
   # catch and finally tag the blocks by blessing a scalar reference to them.
