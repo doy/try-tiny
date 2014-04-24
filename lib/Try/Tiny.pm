@@ -1,10 +1,9 @@
-package Try::Tiny;
-use 5.006;
-# ABSTRACT: minimal try/catch with proper preservation of $@
-
 use strict;
 use warnings;
+package Try::Tiny;
+# ABSTRACT: minimal try/catch with proper preservation of $@
 
+use 5.006;
 use Exporter 5.57 'import';
 our @EXPORT = our @EXPORT_OK = qw(try catch finally);
 
