@@ -3,14 +3,13 @@ use warnings;
 package Try::Tiny;
 # ABSTRACT: minimal try/catch with proper preservation of $@
 
-use 5.006;
 use Exporter 5.57 'import';
 our @EXPORT = our @EXPORT_OK = qw(try catch finally);
 
 use Carp;
 $Carp::Internal{+__PACKAGE__}++;
 
-BEGIN { eval "use Sub::Name; 1" or *{subname} = sub {1} }
+BEGIN { eval { require Sub::Name; Sub::Name->import; 1 } or *{subname} = sub {1} }
 
 # Need to prototype as @ not $$ because of the way Perl evaluates the prototype.
 # Keeping it at $$ means you only ever get 1 sub because we need to eval in a list
