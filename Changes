@@ -1,6 +1,8 @@
 Revision history for Try-Tiny
 
 {{$NEXT}}
+  - optional dependencies used in tests are added as recommended prereqs
+    (Karen Etheridge, PR#18)
 
 0.21  2014-04-15
   - also skip the test if Capture::Tiny is too old (Martin Popel, #17)
