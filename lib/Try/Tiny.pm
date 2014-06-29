@@ -6,7 +6,11 @@ use strict;
 use warnings;
 
 use Exporter 5.57 'import';
+our $num_tries; # localized for each try call
+tie our $TRIES, 'Try::Tiny::Tries';
+
 our @EXPORT = our @EXPORT_OK = qw(try catch finally);
+push @EXPORT_OK, qw(try_again $TRIES);
 
 use Carp;
 $Carp::Internal{+__PACKAGE__}++;
@@ -61,54 +65,84 @@ sub try (&;@) {
   # and restore $@ after the eval finishes
   my $prev_error = $@;
 
-  my ( @ret, $error );
+  my ( @ret, $error, $failed, @guards );
 
-  # failed will be true if the eval dies, because 1 will not be returned
-  # from the eval body
-  my $failed = not eval {
-    $@ = $prev_error;
+  local $num_tries = 0;
 
-    # evaluate the try block in the correct context
-    if ( $wantarray ) {
-      @ret = $try->();
-    } elsif ( defined $wantarray ) {
-      $ret[0] = $try->();
-    } else {
-      $try->();
+  # Label target of try_again()
+Try_Tiny_Try_And_Try_Again: {
+
+    # what iteration is this?
+    $num_tries++;
+
+    # failed will be true if the eval dies, because 1 will not be returned
+    # from the eval body
+    $failed = not eval {
+      $@ = $prev_error;
+
+      # evaluate the try block in the correct context
+      if ( $wantarray ) {
+        @ret = $try->();
+      } elsif ( defined $wantarray ) {
+        $ret[0] = $try->();
+      } else {
+        $try->();
+      };
+
+      return 1; # properly set $fail to false
     };
 
-    return 1; # properly set $fail to false
-  };
+    # preserve the current error and reset the original value of $@
+    $error = $@;
+    $@ = $prev_error;
 
-  # preserve the current error and reset the original value of $@
-  $error = $@;
-  $@ = $prev_error;
-
-  # set up a scope guard to invoke the finally block at the end
-  my @guards =
-    map { Try::Tiny::ScopeGuard->_new($_, $failed ? $error : ()) }
-    @finally;
-
-  # at this point $failed contains a true value if the eval died, even if some
-  # destructor overwrote $@ as the eval was unwinding.
-  if ( $failed ) {
-    # if we got an error, invoke the catch block.
-    if ( $catch ) {
-      # This works like given($error), but is backwards compatible and
-      # sets $_ in the dynamic scope for the body of C<$catch>
-      for ($error) {
-        return $catch->($error);
-      }
-
-      # in case when() was used without an explicit return, the C<for>
-      # loop will be aborted and there's no useful return value
+    # set up scope guards for the finally blocks at the end, but only
+    # on our first try, not on a try_again
+    if (@finally and not @guards) {
+      @guards = map { Try::Tiny::ScopeGuard->_new($_, $failed ? $error : ()) }
+                  @finally;
     }
 
-    return;
-  } else {
-    # no failure, $@ is back to what it was, everything is fine
-    return $wantarray ? @ret : $ret[0];
+
+    # at this point $failed contains a true value if the eval died, even if some
+    # destructor overwrote $@ as the eval was unwinding.
+    if ( $failed and $catch ) {
+      # if we got an error, invoke the catch block, but in such a way that
+      # try_again can identify the stack frame
+      if ( $wantarray ) {
+        @ret = _do_catch($catch, $error);
+      } elsif ( defined $wantarray ) {
+        $ret[0] = _do_catch($catch, $error);
+      } else {
+        _do_catch($catch, $error);
+      }
+    }
+  } # end Try_Tiny_Try_And_Try_Again block
+
+  return unless @ret;
+  return $wantarray ? @ret : $ret[0];
+}
+
+sub _do_catch {
+  # this sub primarily exists to set up an identifiable call frame for
+  # try_again() to inspect
+  my ($catch, $error) = @_;
+
+  # This works like given($error), but is backwards compatible and
+  # sets $_ in the dynamic scope for the body of C<$catch>
+  for ($error) {
+    return $catch->($error);
   }
+  # in case when() was used without an explicit return, the C<for>
+  # loop will be aborted and there's no useful return value
+}
+
+sub try_again() {
+  my $callsub = ((caller(2))[3] || '');
+  croak 'try_again called outside of catch block'
+    unless $callsub eq 'Try::Tiny::_do_catch';
+
+  goto Try_Tiny_Try_And_Try_Again;
 }
 
 sub catch (&;@) {
@@ -164,7 +198,19 @@ sub finally (&;@) {
   }
 }
 
-__PACKAGE__
+{
+package # hide from PAUSE
+  Try::Tiny::Tries;
+
+  use Carp;
+
+  sub TIESCALAR { bless \my $self, shift; }
+  sub FETCH     { $Try::Tiny::num_tries; }
+  sub STORE     { croak 'Cannot assign to read-only variable'; }
+}
+
+
+1
 
 __END__
 
@@ -191,6 +237,8 @@ lightly:
     die "foo";
   };
 
+Simple retrying of blocks is optionally supported with C<try_again>.
+
 =head1 DESCRIPTION
 
 This module provides bare bones C<try>/C<catch>/C<finally> statements that are designed to
@@ -206,6 +254,9 @@ type constraints which may not be desirable either.
 The main focus of this module is to provide simple and reliable error handling
 for those having a hard time installing L<TryCatch>, but who still want to
 write correct C<eval> blocks without 5 lines of boilerplate each time.
+C<try_again> and C<$TRIES> are optional conveniences to avoid the error-prone
+tedium of retrying a C<try> block some number of times while correctly
+running C<catch> and C<finally> blocks.
 
 It's designed to work as correctly as possible in light of the various
 pathological edge cases (see L</BACKGROUND>) and to be compatible with any style
@@ -241,10 +292,11 @@ this.
 
 =head1 EXPORTS
 
-All functions are exported by default using L<Exporter>.
+The functions C<try>, C<catch> anc C<finally> are exported by default using
+L<Exporter>.  C<try_again> and C<$TRIES> are available as arguments to L<perlfunc/use>.
 
-If you need to rename the C<try>, C<catch> or C<finally> keyword consider using
-L<Sub::Import> to get L<Sub::Exporter>'s flexibility.
+If you need to rename the C<try>, C<catch>, C<try_again> or C<finally> keywords
+consider using L<Sub::Import> to get L<Sub::Exporter>'s flexibility.
 
 =over 4
 
@@ -341,6 +393,51 @@ may change in a future version of Try::Tiny.
 
 In the same way C<catch()> blesses the code reference this subroutine does the same
 except it bless them as C<Try::Tiny::Finally>.
+
+=item try_again ()
+
+  use Try::Tiny qw(:DEFAULT try_again);
+
+  try   { ... }
+  catch {
+    ...
+    try_again if i_think_i_can_recover();
+    ...
+  } finally {
+    ...
+  }
+
+Intended to be invoked inside a C<catch> block, this optional function repeats
+the C<try> block without invoking any C<finally> blocks.
+
+C<try_again> croaks with an error if it is not invoked inside a catch{} block.
+Since repeating the C<try> block might lead to infinite loops, it may be a
+good idea to set an upper boundary on the number of retries.  C<Try::Tiny>
+exposes the number of times a C<try> block has been invoked through the
+variable C<$TRIES>.
+
+=item $TRIES
+
+  use Try::Tiny qw(:DEFAULT try_again $TRIES);
+
+  try     { warn "This is attempt no. $TRIES"; }
+  catch   { try_again if $TRIES < $some_upper_boundary; }
+  finally { warn "It took $TRIES attempts to get here"; }
+
+The special, read-only variable C<$Try::Tiny::TRIES> keeps track of the number
+of times the inner-most C<try> block has been invoked or re-invoked with
+C<try_again>.  For example:
+
+  try {                                       # this prints:
+    print "outer: $TRIES\n";                  # outer 1
+                                              #   inner 1
+    die;                                      #   inner 2
+  } catch {                                   # outer 2
+    try   { print "  inner: $TRIES\n"; die; } #   inner 1
+    catch { try_again if $TRIES < 2; };       #   inner 2
+                                              # outer 3
+    try_again if $TRIES < 3;                  #   inner 1
+  }                                           #   inner 2
 
 =back
 
@@ -598,6 +695,11 @@ is unclear whether the new version 18 behavior is final.
 
 Much more feature complete, more convenient semantics, but at the cost of
 implementation complexity.
+
+=item L<Try::Tiny::Retry>
+
+A different approach of retry blocks, based on C<Try::Tiny>, supporting
+delays and backoffs between retries.
 
 =item L<autodie>
 
